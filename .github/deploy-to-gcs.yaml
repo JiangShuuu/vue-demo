@@ -1,0 +1,46 @@
+name: Deploy to Google Cloud Storage (Production)
+
+on:
+  push:
+    branches:
+      - production
+
+env:
+  BUCKET_DESTINATION: vue-demo
+  VITE_APIURL: https://crm.api.safedrivio.com.tw
+
+jobs:
+  build-and-upload-to-gcs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+      - uses: oven-sh/setup-bun@v1 # Setup bun
+        with:
+          bun-version: latest # You can also use a specific version
+      - name: Install bun
+        run: bun install
+      - name: Cache bun packages
+        uses: actions/cache@v3
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-store-
+
+      - name: Build Application
+        run: bun run build
+
+      - name: Auth for GCS
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.gcp_credentials }}
+
+      - name: Upload Folder to GCS
+        uses: google-github-actions/upload-cloud-storage@v2
+        with:
+          path: dist
+          destination: ${{ env.BUCKET_DESTINATION }}
+          parent: false
+          headers: |-
+            cache-control: no-cache
